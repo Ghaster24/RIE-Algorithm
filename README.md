@@ -2,7 +2,7 @@
 'Recursive Inception Encodor' (RIE)
 This script is a small, but useful description/logic guide that is only to show proof of concept.
 
-This is designed with Hardware is the software in mine, where a crystal will be the the object in reference.
+This is designed with Hardware is the software in mind, where a crystal will be the the object in reference.
 We'll call it a Mnemohedron — from mnemo (memory) + polyhedron (a mathematical solid); implies geometry that *contains* rather than stores, Engram Or *Engramspace* — engram is the neurological term for a memory trace; space implies it's navigable, The Mnemonic Field — suggests physics, like a field that holds information in its structure<img width="1442" height="960" alt="Pasted image 20260601015927" src="https://github.com/user-attachments/assets/a47250bc-3f6d-4b78-a755-20e6e178a3f5" />
 
 For the description, here's a working draft of how to articulate it:
