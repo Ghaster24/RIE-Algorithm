@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIE v4.10 — True Max-Pooling</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #060b14; --surface: #0d1825; --border: #1a3352;
+    --text: #8ba8c4; --dim: #3d5a78; --gold: #f59e0b;
+    --red: #ef4444; --emerald: #10b981; --purple: #a855f7; --cyan: #22d3ee;
+  }
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--bg); color: var(--text);
+    padding: 20px; font-size: 12px;
+  }
+  .hex { transition: fill 0.8s ease, stroke 0.8s ease, filter 0.8s ease, fill-opacity 0.8s ease; }
+  .log-entry { border-left: 2px solid var(--border); padding: 10px 12px; margin-bottom: 8px; background: #0a131e; animation: fadeIn 0.3s ease-out; }
+  .log-noise { border-left-color: #374151; opacity: 0.7; }
+  .log-etch { border-left-color: var(--gold); }
+  .log-error { border-left-color: var(--red); background: #2a0b12; }
+  .log-interpreter { border-left-color: var(--cyan); background: #051928; }
+  .log-dynamic { border-left-color: #f472b6; background: #1f122d; }
+  .log-decay { border-left-color: var(--emerald); background: #062a1a; }
+  .log-null { border-left-color: #64748b; background: #0f172a; }
+  button { transition: all 0.15s; }
+  button:hover { filter: brightness(1.2); }
+  button:active { transform: scale(0.98); }
+  
+  /* Telemetry Visualizer */
+  .telemetry-bar-container { height: 30px; background: #0a131e; border: 1px solid #1a3352; position: relative; overflow: hidden; border-radius: 2px; }
+  .telemetry-bar { position: absolute; bottom: 0; width: 100%; transition: height 0.15s ease-out, background 0.15s; }
+  .telemetry-label { position: absolute; bottom: -18px; width: 100%; text-align: center; font-size: 9px; color: #3d5a78; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+  
+  <div class="flex flex-col gap-4">
+    <div class="p-4 border border-[#1a3352] bg-[#0d1825]">
+      <h1 class="text-lg text-[#22d3ee] font-bold tracking-widest mb-1">◈ RIE v4.10: TRUE MAX-POOLING</h1>
+      <p class="text-[#3d5a78] text-[10px]">Dominant Vector Snapping • Expanded TSPC Lexicon • Anti-Cancellation Physics</p>
+    </div>
+
+    <div class="p-4 border border-[#1a3352] bg-[#0d1825] flex justify-center items-center overflow-hidden relative">
+      <svg id="lattice" width="450" height="400"></svg>
+    </div>
+
+    <div class="p-4 border border-[#1a3352] bg-[#0d1825]">
+      <div class="flex gap-2 mb-3 flex-wrap">
+        <button onclick="runTest('tsps1')" class="px-3 py-1 border border-cyan-900 text-cyan-400 text-[10px] font-bold">◈ TSPC Test 1</button>
+        <button onclick="runTest('tsps2')" class="px-3 py-1 border border-purple-900 text-purple-400 text-[10px]">◈ TSPC Test 2</button>
+        <button onclick="runTest('noise')" class="px-3 py-1 border border-slate-700 text-slate-400 text-[10px]">○ Noise Filter Test</button>
+        <button onclick="triggerDecay()" class="px-3 py-1 border border-emerald-900 text-emerald-400 text-[10px] ml-auto">↻ Apply Decay</button>
+      </div>
+      
+      <textarea id="inputBox" class="w-full bg-[#060b14] border border-[#1a3352] p-3 text-[#8ba8c4] outline-none focus:border-[#22d3ee]" rows="3" placeholder="Enter structural input..."></textarea>
+      
+      <!-- Live 6D Telemetry UI -->
+      <div class="grid grid-cols-6 gap-2 mt-4 mb-4">
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-V" class="telemetry-bar" style="height: 0%; background: #38bdf8;"></div></div><div class="telemetry-label">V (Valence)</div></div>
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-U" class="telemetry-bar" style="height: 0%; background: #f59e0b;"></div></div><div class="telemetry-label">U (Urgency)</div></div>
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-S" class="telemetry-bar" style="height: 0%; background: #a855f7;"></div></div><div class="telemetry-label">S (Stake)</div></div>
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-T" class="telemetry-bar" style="height: 0%; background: #10b981;"></div></div><div class="telemetry-label">T (Temporal)</div></div>
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-E" class="telemetry-bar" style="height: 0%; background: #ef4444;"></div></div><div class="telemetry-label">E (Entropy)</div></div>
+        <div class="relative"><div class="telemetry-bar-container"><div id="bar-L" class="telemetry-bar" style="height: 0%; background: #cbd5e1;"></div></div><div class="telemetry-label">L (Logic)</div></div>
+      </div>
+
+      <div class="flex justify-end items-center mt-6">
+        <button onclick="processInput()" class="px-6 py-2 bg-[#051928] border border-[#0d4a6e] text-[#22d3ee] font-bold">INCEPT →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col border border-[#1a3352] bg-[#0d1825] h-[850px]">
+    <div class="p-3 border-b border-[#1a3352] text-[10px] text-[#3d5a78] tracking-widest flex justify-between">
+      <span>ALGORITHMIC INTERPRETER LOG</span>
+      <span id="latticeState">Crystals: 0</span>
+    </div>
+    <div id="console" class="flex-1 p-3 overflow-y-auto flex flex-col gap-2"></div>
+  </div>
+
+</div>
+
+<script>
+class BabelCrystallineRecall {
+    constructor() { this.m = 4294967296n; this.a = 1664525n; this.c = 1013904223n; }
+    temper(x) {
+        x = BigInt(x) & 0xFFFFFFFFn; 
+        x ^= (x >> 11n); x ^= (x << 7n) & 0x9D2C5680n; x ^= (x << 15n) & 0xEFC60000n; x ^= (x >> 18n);
+        return x & 0xFFFFFFFFn;
+    }
+    encodeSeedToCrystal(seedInt) {
+        let seed = BigInt(seedInt) & 0xFFFFFFFFn;
+        let lcg_next = (this.a * seed + this.c) % this.m;
+        return this.temper(lcg_next);
+    }
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+        }
+        return hash;
+    }
+}
+
+// EXPANDED V10.2 TSPC LEXICON
+let CANON_ANCHORS = {
+    // Generative (Positive)
+    'love':       { type: 'P', weight: 0.95,  angle: 0,           mag: 5, label: "Generative Core" },
+    'truth':      { type: 'P', weight: 0.90,  angle: Math.PI/6,   mag: 4, label: "Structural Integrity" },
+    'rebuilt':    { type: 'P', weight: 0.99,  angle: -Math.PI/6,  mag: 5, label: "Somatic Expansion" },
+    'village':    { type: 'P', weight: 0.94,  angle: -Math.PI/12, mag: 4, label: "Collective Body" },
+    'council':    { type: 'P', weight: 0.92,  angle: Math.PI/12,  mag: 4, label: "Collective Wisdom" },
+    'water':      { type: 'P', weight: 0.65,  angle: -Math.PI/4,  mag: 3, label: "Somatic Gift" },
+    'hope':       { type: 'P', weight: 0.88,  angle: -Math.PI/8,  mag: 3, label: "Solvent Future" },
+    'pride':      { type: 'P', weight: 0.75,  angle: Math.PI/8,   mag: 3, label: "Internal Validation" },
+    'compassion': { type: 'P', weight: 0.91,  angle: Math.PI/16,  mag: 4, label: "Extended Care" },
+    'house':      { type: 'P', weight: 0.80,  angle: -Math.PI/16, mag: 3, label: "Static Structure" },
+    
+    // Extractive (Negative)
+    'entropy':    { type: 'I', weight: -0.80, angle: Math.PI,     mag: 5, label: "Systemic Decay" },
+    'sycophancy': { type: 'I', weight: -0.90, angle: 5*Math.PI/6, mag: 6, label: "Ambiguity/Lie" },
+    'lie':        { type: 'I', weight: -0.85, angle: 5*Math.PI/6, mag: 5, label: "Artificial Ambiguity" },
+    'grief':      { type: 'I', weight: -0.60, angle: -5*Math.PI/6,mag: 4, label: "Incision/Blow" },
+    'blow':       { type: 'I', weight: -0.50, angle: -3*Math.PI/4,mag: 3, label: "Damage Cost" },
+    'death':      { type: 'I', weight: -0.90, angle: 4*Math.PI/5, mag: 6, label: "Absolute Entropy" },
+    'fear':       { type: 'I', weight: -0.50, angle: 3*Math.PI/4, mag: 4, label: "Mind-Killer" },
+    'despair':    { type: 'I', weight: -0.70, angle: 7*Math.PI/8, mag: 5, label: "Insolvency Belief" },
+    'debt':       { type: 'I', weight: -0.60, angle: 9*Math.PI/10,mag: 4, label: "Systemic Drag" },
+    'paralysis':  { type: 'I', weight: -0.80, angle: 3*Math.PI/5, mag: 5, label: "Zero Agency" },
+    'theft':      { type: 'I', weight: -0.75, angle: Math.PI,     mag: 4, label: "Resource Extraction" }
+};
+
+const SYNONYM_MAP = {
+    'happy': 'love', 'pain': 'grief', 'destroy': 'entropy', 'build': 'rebuilt', 'honest': 'truth', 
+    'perfection': 'paralysis', 'wage': 'theft', 'friend': 'village'
+};
+
+const STOP_WORDS = new Set([
+    "the", "and", "a", "an", "is", "are", "was", "were", "to", "of", "in", "for", 
+    "on", "with", "as", "at", "by", "this", "that", "it", "not", "be", "or", "will", 
+    "just", "all", "what", "like", "you", "i", "we", "they", "he", "she", "but", 
+    "so", "if", "there", "their", "then", "than", "do", "can", "could", "would", "should",
+    "more", "my", "your", "his", "her", "our", "its", "from", "into", "after", "before", 
+    "over", "under", "between", "through", "during", "once", "here", "when", "where", 
+    "why", "how", "any", "both", "each", "few", "most", "other", "some", "such", "no", 
+    "nor", "only", "own", "same", "too", "very", "don", "now", "out", "about", "up", "down",
+    "has", "have", "had", "been", "being", "am", "does", "did", "doing", "which", "who", "whom"
+]);
+
+class SemanticBridge {
+    constructor() {
+        this.babel = new BabelCrystallineRecall();
+    }
+    
+    evaluateSentence(sentence) {
+        let processedText = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        const tokens = processedText.match(/\w+/g) || [];
+        
+        let pullVectors = [];
+        let unknownVectors = [];
+        let cumulativeP = 0.0, cumulativeISSP = 0.0, maxUrgency = 0.0;
+        let detected = [];
+
+        // Pass 1: Identify Canon Words
+        for (let i = 0; i < tokens.length; i++) {
+            let token = SYNONYM_MAP[tokens[i]] || tokens[i];
+            if (CANON_ANCHORS[token]) {
+                let data = CANON_ANCHORS[token];
+                detected.push(`[K] ${token}`);
+                
+                let vx = data.mag * Math.cos(data.angle);
+                let vy = data.mag * Math.sin(data.angle);
+                
+                pullVectors.push({ x: vx, y: vy, weight: Math.abs(data.weight) });
+
+                if (data.type === 'P') cumulativeP += data.weight * (1.0 - cumulativeP);
+                else cumulativeISSP += data.weight * (1.0 - Math.abs(cumulativeISSP));
+                
+                maxUrgency = Math.max(maxUrgency, Math.abs(data.weight));
+            }
+        }
+        
+        // Pass 2: Identify Unknown Words (Tint)
+        for (let i = 0; i < tokens.length; i++) {
+            let token = SYNONYM_MAP[tokens[i]] || tokens[i];
+            
+            if (!CANON_ANCHORS[token] && token.length > 2 && !STOP_WORDS.has(token)) {
+                detected.push(`[U] ${token}`);
+                
+                let hash = this.babel.hashString(token);
+                let nativeAngle = (Math.abs(hash) % 360) * (Math.PI / 180);
+                
+                let finalVx = Math.cos(nativeAngle);
+                let finalVy = Math.sin(nativeAngle);
+
+                unknownVectors.push({ x: finalVx, y: finalVy, word: token, nativeAngle: nativeAngle });
+            }
+        }
+        
+        let V = cumulativeP + cumulativeISSP; 
+        let U = Math.max(maxUrgency, Math.min(1.0, tokens.length / 10)); 
+        let S = Math.min(1.0, Math.max(Math.abs(cumulativeP), Math.abs(cumulativeISSP))); 
+        
+        return { 
+            pullVectors, unknownVectors,
+            vector: { V, U, S, T: 0.5, E: Math.abs(cumulativeISSP), L: 1.0 - Math.abs(cumulativeISSP) }, 
+            Phi_A: S || 0.1,
+            tokens: detected 
+        };
+    }
+}
+
+class InceptionEngine {
+    constructor(radius) {
+        this.nodes = new Map();
+        this.radius = radius;
+        this.babelRecall = new BabelCrystallineRecall(); 
+        this.initializeAnchors();
+    }
+
+    initializeAnchors() {
+        for (const [key, data] of Object.entries(CANON_ANCHORS)) {
+            let x = data.mag * Math.cos(data.angle);
+            let y = data.mag * Math.sin(data.angle);
+            let q = Math.round((Math.sqrt(3)/3 * x - 1/3 * y));
+            let r = Math.round((2/3 * y));
+            
+            let seed = this.packCoordinates(q, r);
+            let hash = '0x' + this.babelRecall.encodeSeedToCrystal(seed).toString(16).toUpperCase().padStart(8, '0');
+            
+            this.nodes.set(hash, {
+                text: `[ANCHOR: ${key.toUpperCase()}]`,
+                P_Net: data.weight,
+                potential: 1.0,
+                hardened: true,
+                isAnchor: true,
+                q: q, r: r
+            });
+        }
+    }
+
+    packCoordinates(q, r) {
+        let q_masked = BigInt(q) & 0xFFFFn;
+        let r_masked = BigInt(r) & 0xFFFFn;
+        return Number((r_masked << 16n) | q_masked);
+    }
+
+    triangulateCoordinates(pullVectors, unknownVectors, vector) {
+        let finalX = 0, finalY = 0;
+
+        // 1. TRUE MAX-POOLING: Find the single dominant emotional vector
+        let dominantPull = null;
+        for (let v of pullVectors) {
+            if (!dominantPull || v.weight > dominantPull.weight) {
+                dominantPull = v;
+            }
+        }
+
+        if (dominantPull) {
+            // The dominant emotion establishes the base coordinate (No Cancellation)
+            finalX = dominantPull.x * dominantPull.weight;
+            finalY = dominantPull.y * dominantPull.weight;
+
+            // Subordinate emotions add structural tension, but CANNOT cancel out the dominant force (35% impact max)
+            for (let v of pullVectors) {
+                if (v !== dominantPull) {
+                    finalX += (v.x * v.weight * 0.35); 
+                    finalY += (v.y * v.weight * 0.35);
+                }
+            }
+        } else {
+            // Weak baseline drift if absolutely no Canon words are present
+            finalX = (vector.V * this.radius * 0.1);
+            finalY = (vector.E * this.radius * 0.1);
+        }
+
+        // 2. NOISE BECOMES TINT (Babel Drift)
+        let driftX = 0, driftY = 0;
+        for (let uv of unknownVectors) {
+            driftX += uv.x;
+            driftY += uv.y;
+        }
+        
+        // Multiplier is strictly 0.05. Unknowns tint the memory, they do not overpower it.
+        finalX += (driftX * 0.05);
+        finalY += (driftY * 0.05);
+
+        // 3. URGENCY TENSION
+        finalX += Math.cos(vector.U * Math.PI) * 0.5;
+        finalY += Math.sin(vector.U * Math.PI) * 0.5;
+
+        const q = Math.round((Math.sqrt(3)/3 * finalX - 1/3 * finalY));
+        const r = Math.round((2/3 * finalY));
+        
+        return { q: Math.max(-this.radius, Math.min(this.radius, q)), r: Math.max(-this.radius, Math.min(this.radius, r)) };
+    }
+
+    interpretLanding(q, r, text, metrics) {
+        if (q === 0 && r === 0) {
+            return `Perfect Vector Cancellation. Tensor resolved to [EQUILIBRIUM NULL BIN].`;
+        }
+
+        let closestAnchors = [];
+        for (const [key, data] of Object.entries(CANON_ANCHORS)) {
+            let ax = data.mag * Math.cos(data.angle);
+            let ay = data.mag * Math.sin(data.angle);
+            let aq = Math.round((Math.sqrt(3)/3 * ax - 1/3 * ay));
+            let ar = Math.round((2/3 * ay));
+            
+            let dist = (Math.abs(q - aq) + Math.abs(q + r - aq - ar) + Math.abs(r - ar)) / 2;
+            closestAnchors.push({ key, dist, label: data.label });
+        }
+        
+        closestAnchors.sort((a, b) => a.dist - b.dist);
+        let primary = closestAnchors[0];
+        let secondary = closestAnchors[1];
+
+        let tensionDiff = Math.abs(primary.dist - secondary.dist);
+
+        let interpretation = "";
+        if (primary.dist === 0) {
+            interpretation = `Direct strike on Anchor. Meaning locked to [${primary.label}].`;
+        } else if (tensionDiff < 1.5 && primary.dist < 4) {
+            interpretation = `High-Tension Equilibrium: Torn between '${primary.key}' and '${secondary.key}'. Complex metaphor forming bridging [${primary.label}] and [${secondary.label}].`;
+        } else if (primary.dist < 3) {
+            interpretation = `Orbiting '${primary.key}'. Experience heavily polarized by [${primary.label}].`;
+        } else {
+            interpretation = `Deep space inception (Dist: ${primary.dist}). No dominant gravity well. Forming new isolated semantic concept.`;
+        }
+
+        return interpretation;
+    }
+
+    incept(text, metrics) {
+        const hex = this.triangulateCoordinates(metrics.pullVectors, metrics.unknownVectors, metrics.vector);
+        const seed = this.packCoordinates(hex.q, hex.r);
+        const hashInt = this.babelRecall.encodeSeedToCrystal(seed);
+        const hashStr = '0x' + hashInt.toString(16).toUpperCase().padStart(8, '0');
+
+        let targetNode = this.nodes.get(hashStr);
+        let action = "ETCHED";
+        let isConceptFormation = false;
+        
+        let dominantUnknown = null;
+        if (metrics.unknownVectors.length > 0) {
+            let minDiff = Infinity;
+            let hexAngle = Math.atan2(hex.r, hex.q);
+            if (hexAngle < 0) hexAngle += 2 * Math.PI;
+
+            for (let uv of metrics.unknownVectors) {
+                let diff = Math.abs(uv.nativeAngle - hexAngle);
+                if (diff > Math.PI) diff = 2 * Math.PI - diff; 
+                
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    dominantUnknown = uv.word;
+                }
+            }
+        }
+        
+        const isOrigin = (hex.q === 0 && hex.r === 0);
+
+        const engram = {
+            text: text,
+            crystalHash: hashStr,
+            P_Net: metrics.P - metrics.I_SSP,
+            potential: Math.max(0.3, metrics.Phi_A),
+            hardened: false,
+            isAnchor: false,
+            q: hex.q, r: hex.r
+        };
+
+        if (targetNode && !targetNode.isAnchor) {
+            action = "REINFORCED";
+            targetNode.potential = Math.min(1.0, targetNode.potential + 0.4);
+            targetNode.text = text;
+            engram.potential = targetNode.potential;
+
+            if (targetNode.potential >= 0.8 && dominantUnknown && !isOrigin && metrics.Phi_A >= 0.60) {
+                targetNode.isAnchor = true;
+                targetNode.hardened = true;
+                action = "CONCEPT FORMED";
+                isConceptFormation = true;
+                
+                CANON_ANCHORS[dominantUnknown] = {
+                    type: 'Dynamic', weight: 0.5, 
+                    angle: Math.atan2(hex.r, hex.q), mag: Math.sqrt(hex.q*hex.q + hex.r*hex.r),
+                    label: `Emergent: ${dominantUnknown.toUpperCase()}`
+                };
+            } else if (isOrigin) {
+                action = "NULL BIN EQUILIBRIUM";
+            }
+        } else if (!targetNode) {
+            this.nodes.set(hashStr, engram);
+            if (isOrigin) action = "NULL BIN EQUILIBRIUM";
+        } else {
+            action = "ANCHOR STRIKE";
+        }
+
+        let interpretation = this.interpretLanding(hex.q, hex.r, text, metrics);
+
+        return { action, q: hex.q, r: hex.r, engram, interpretation, isConceptFormation, dynamicWord: dominantUnknown, isOrigin };
+    }
+
+    applyThermodynamicDecay() {
+        let evaporated = 0;
+        for (const [hash, engram] of this.nodes.entries()) {
+            if (engram.isAnchor || engram.hardened) continue; 
+            engram.potential *= 0.85; 
+            if (engram.potential < 0.1) {
+                this.nodes.delete(hash);
+                evaporated++;
+            }
+        }
+        return evaporated;
+    }
+}
+
+const bridge = new SemanticBridge();
+const engine = new InceptionEngine(7);
+
+const svg = document.getElementById('lattice');
+const center_x = 225, center_y = 200, hexRadius = 14;
+
+function drawHex(q, r, fill, stroke, filter, opacity = 1.0) {
+    const cx = center_x + hexRadius * Math.sqrt(3) * (q + r/2);
+    const cy = center_y + hexRadius * 1.5 * r;
+    
+    let pts = '';
+    for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 180) * (60 * i - 30);
+        pts += `${cx + hexRadius * Math.cos(angle)},${cy + hexRadius * Math.sin(angle)} `;
+    }
+
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', pts.trim());
+    poly.setAttribute('fill', fill);
+    poly.setAttribute('stroke', stroke);
+    poly.setAttribute('style', `filter: ${filter}`);
+    poly.setAttribute('fill-opacity', opacity);
+    poly.setAttribute('class', 'hex');
+    svg.appendChild(poly);
+}
+
+function updateVisuals() {
+    svg.innerHTML = '';
+    for(let q = -7; q <= 7; q++) {
+        for(let r = -7; r <= 7; r++) {
+            if ((Math.abs(q) + Math.abs(q+r) + Math.abs(r)) / 2 <= 7) {
+                drawHex(q, r, '#0a131e', '#1a3352', 'none', 0.5);
+            }
+        }
+    }
+
+    for (const [hashStr, engram] of engine.nodes.entries()) {
+        const q = engram.q; const r = engram.r;
+        let fill = '', stroke = '', filter = 'none';
+        let isOrigin = (q === 0 && r === 0);
+
+        if (engram.isAnchor) {
+            fill = engram.P_Net > 0 ? '#f59e0b' : (engram.P_Net < 0 ? '#ef4444' : '#f472b6'); 
+            stroke = '#ffffff';
+            filter = `drop-shadow(0 0 8px ${fill})`;
+        } else if (isOrigin) {
+            fill = `rgba(100, 116, 139, ${engram.potential})`; stroke = '#64748b'; 
+        } else if (engram.P_Net > 0) {
+            fill = `rgba(56, 189, 248, ${engram.potential})`; stroke = '#38bdf8';
+        } else if (engram.P_Net < 0) {
+            fill = `rgba(168, 85, 247, ${engram.potential})`; stroke = '#a855f7';
+        } else {
+            fill = `rgba(100, 116, 139, ${engram.potential})`; stroke = '#334155';
+        }
+        drawHex(q, r, fill, stroke, filter, Math.max(0.2, engram.potential));
+    }
+    document.getElementById('latticeState').innerText = `Crystals: ${engine.nodes.size}`;
+}
+
+function updateTelemetry(vector) {
+    const clamp = (val) => Math.max(0, Math.min(100, val * 100));
+    let vPerc = clamp((vector.V + 1) / 2);
+    document.getElementById('bar-V').style.height = `${vPerc}%`;
+    document.getElementById('bar-V').style.background = vector.V > 0 ? '#38bdf8' : (vector.V < 0 ? '#ef4444' : '#64748b');
+    document.getElementById('bar-U').style.height = `${clamp(vector.U)}%`;
+    document.getElementById('bar-S').style.height = `${clamp(vector.S)}%`;
+    document.getElementById('bar-T').style.height = `${clamp(vector.T)}%`;
+    document.getElementById('bar-E').style.height = `${clamp(vector.E)}%`;
+    document.getElementById('bar-L').style.height = `${clamp(vector.L)}%`;
+}
+
+function logToConsole(res) {
+    const c = document.getElementById('console');
+    const div = document.createElement('div');
+    const e = res.engram;
+
+    let headerClass = 'text-[#22d3ee]';
+    let boxClass = 'border-[#a855f7]';
+    let wrapperClass = 'log-interpreter';
+    
+    if (res.action === "CONCEPT FORMED") {
+        headerClass = 'text-pink-400';
+        boxClass = 'border-pink-500 bg-[#1f122d]';
+        wrapperClass = 'log-dynamic';
+    } else if (res.isOrigin) {
+        headerClass = 'text-slate-400';
+        boxClass = 'border-slate-500 bg-[#0f172a]';
+        wrapperClass = 'log-null';
+    }
+
+    div.className = `log-entry ${wrapperClass}`;
+    div.innerHTML = `
+        <div class="flex justify-between font-bold ${headerClass}">
+            <span>◈ ${res.action} AT H(${res.q},${res.r})</span>
+        </div>
+        <div class="text-[9px] text-[#8ba8c4] mt-1 font-mono">Babel Hash: ${e.crystalHash}</div>
+        <div class="italic text-gray-400 mt-2">"${e.text}"</div>
+        <div class="mt-3 p-2 bg-[#060b14] border-l-2 ${boxClass} text-[10px] text-[#cbd5e1]">
+            <span class="${headerClass} font-bold">${res.action === "CONCEPT FORMED" ? `★ NEW DYNAMIC ANCHOR FORGED: [${res.dynamicWord.toUpperCase()}]` : 'INTERPRETER OUTPUT:'}</span><br>
+            ${res.interpretation}
+        </div>
+    `;
+    c.prepend(div);
+}
+
+function processInput(forcedText = null) {
+    const box = document.getElementById('inputBox');
+    const text = forcedText || box.value;
+    if (!text.trim()) return;
+    
+    const metrics = bridge.evaluateSentence(text);
+    const result = engine.incept(text, metrics);
+    
+    logToConsole(result);
+    updateVisuals();
+    updateTelemetry(metrics.vector);
+    if (!forcedText) box.value = '';
+}
+
+function triggerDecay() {
+    let evaporated = engine.applyThermodynamicDecay();
+    const c = document.getElementById('console');
+    const div = document.createElement('div');
+    div.className = 'log-entry log-decay';
+    div.innerHTML = `<span class="text-emerald-500 font-bold">↻ METABOLIC CYCLE</span><br><span class="text-emerald-300 text-[10px]">Thermodynamic Decay applied. Evaporated ${evaporated} unhardened nodes.</span>`;
+    c.prepend(div);
+    updateVisuals();
+}
+
+function runTest(type) {
+    const tests = {
+        tsps1: "Without hope, the village slid into despair.",
+        tsps2: "She felt no pride and never hope, only despair.",
+        noise: "The quiet afternoon slipped past the window in silence."
+    };
+    processInput(tests[type]);
+}
+
+updateVisuals();
+</script>
+</body>
+</html>
