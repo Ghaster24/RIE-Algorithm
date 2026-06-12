@@ -1,5 +1,5 @@
 # RIE-Algorithm - Heart CUDA (Advanced Somatic Topology)
-'Recursive Inception Engine' (RIE)
+'Recursive Inception Encoder' (RIE)
 This script is a small, but useful description/logic guide that is only to show proof of concept.
 
 This is designed with Hardware is the software in mind, where a crystal will be the the object in reference.
